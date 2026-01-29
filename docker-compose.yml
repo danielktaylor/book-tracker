@@ -2,10 +2,7 @@ services:
   web:
     build: .
     ports:
-      - "5000:5000"
+      - "5883:5000"
     volumes:
-      - ./data:/app/data
-      - .:/app
-    environment:
-      - FLASK_ENV=development
+      - .${HOME}/volumes/book-tracker:/app/data
     restart: unless-stopped
