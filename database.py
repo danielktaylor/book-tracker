@@ -30,18 +30,27 @@ def init_db():
                 isbn TEXT,
                 status TEXT,
                 rating REAL,
+                notes TEXT,
                 added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
+
+        # Add notes column to existing databases
+        try:
+            conn.execute("ALTER TABLE books ADD COLUMN notes TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
 
 
 def add_book(book_data):
     with get_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, isbn, status, rating)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, isbn, status, rating, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 book_data.get("key"),
@@ -52,6 +61,7 @@ def add_book(book_data):
                 book_data.get("isbn"),
                 book_data.get("status"),
                 book_data.get("rating"),
+                book_data.get("notes"),
             ),
         )
         conn.commit()
@@ -110,12 +120,13 @@ def update_book(book_id, book_data):
         conn.execute(
             """
             UPDATE books
-            SET status = ?, rating = ?
+            SET status = ?, rating = ?, notes = ?
             WHERE id = ?
         """,
             (
                 book_data.get("status"),
                 book_data.get("rating"),
+                book_data.get("notes"),
                 book_id,
             ),
         )

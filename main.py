@@ -109,6 +109,7 @@ def save_book():
                     "isbn": None,
                     "status": book_data.get("status"),
                     "rating": book_data.get("rating"),
+                    "notes": book_data.get("notes"),
                 }
             )
         else:
@@ -137,6 +138,7 @@ def save_book():
                     "isbn": isbn,
                     "status": book_data.get("status"),
                     "rating": book_data.get("rating"),
+                    "notes": book_data.get("notes"),
                 }
             )
 

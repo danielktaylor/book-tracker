@@ -495,6 +495,7 @@ function openModal(book) {
   document.getElementById("bookStatus").value = "";
   selectedRating = 0;
   updateStarDisplay();
+  document.getElementById("bookNotes").value = "";
 
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
@@ -526,6 +527,7 @@ function openManualEntryModal() {
   document.getElementById("bookStatus").value = "";
   selectedRating = 0;
   updateStarDisplay();
+  document.getElementById("bookNotes").value = "";
 
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
@@ -569,6 +571,7 @@ function openEditModal(book) {
   document.getElementById("bookStatus").value = book.status || "want_to_read";
   selectedRating = book.rating || 0;
   updateStarDisplay();
+  document.getElementById("bookNotes").value = book.notes || "";
 
   modalSave.textContent = "Update Book";
   modalDelete.style.display = "block";
@@ -675,6 +678,7 @@ async function saveBook() {
   const status = statusSelect.value;
   const statusError = document.getElementById("statusError");
   const rating = selectedRating;
+  const notes = document.getElementById("bookNotes").value.trim();
 
   const title = document.getElementById("modalTitle").value.trim();
   const author = document.getElementById("modalAuthor").value.trim();
@@ -707,6 +711,7 @@ async function saveBook() {
       first_publish_year: year ? parseInt(year) : null,
       status: status,
       rating: rating,
+      notes: notes,
       manual: true,
     };
   } else {
@@ -717,6 +722,7 @@ async function saveBook() {
       first_publish_year: year ? parseInt(year) : null,
       status: status,
       rating: rating,
+      notes: notes,
     };
   }
 
@@ -751,6 +757,7 @@ async function saveBook() {
 async function updateBook() {
   const status = document.getElementById("bookStatus").value;
   const rating = selectedRating;
+  const notes = document.getElementById("bookNotes").value.trim();
 
   try {
     const response = await fetch(`/api/books/${currentBookId}`, {
@@ -761,6 +768,7 @@ async function updateBook() {
       body: JSON.stringify({
         status: status,
         rating: rating,
+        notes: notes,
       }),
     });
 
