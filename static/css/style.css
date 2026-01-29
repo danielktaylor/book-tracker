@@ -735,6 +735,26 @@ main {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.form-control.error {
+    border-color: var(--danger-color);
+}
+
+.form-control.error:focus {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.field-error {
+    display: none;
+    color: var(--danger-color);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.field-error.show {
+    display: block;
+}
+
 .star-rating {
     display: flex;
     gap: 6px;

@@ -455,6 +455,17 @@ function initModal() {
     }
   });
 
+  // Clear status error when user selects a status
+  const statusSelect = document.getElementById("bookStatus");
+  const statusError = document.getElementById("statusError");
+  statusSelect.addEventListener("change", () => {
+    if (statusSelect.value) {
+      statusError.textContent = "";
+      statusError.classList.remove("show");
+      statusSelect.classList.remove("error");
+    }
+  });
+
   initStarRating();
 }
 
@@ -660,12 +671,19 @@ async function saveOrUpdateBook() {
 }
 
 async function saveBook() {
-  const status = document.getElementById("bookStatus").value;
+  const statusSelect = document.getElementById("bookStatus");
+  const status = statusSelect.value;
+  const statusError = document.getElementById("statusError");
   const rating = selectedRating;
 
   const title = document.getElementById("modalTitle").value.trim();
   const author = document.getElementById("modalAuthor").value.trim();
   const year = document.getElementById("modalYear").value.trim();
+
+  // Clear any previous error
+  statusError.textContent = "";
+  statusError.classList.remove("show");
+  statusSelect.classList.remove("error");
 
   if (!title) {
     showMessage("Please enter a book title", "error");
@@ -673,7 +691,10 @@ async function saveBook() {
   }
 
   if (!status) {
-    showMessage("Please select a reading status", "error");
+    statusError.textContent = "Please select a reading status";
+    statusError.classList.add("show");
+    statusSelect.classList.add("error");
+    statusSelect.focus();
     return;
   }
 
