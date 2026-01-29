@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Book Tracker</title>
+        <link
+            rel="icon"
+            type="image/x-icon"
+            href="{{ url_for('static', filename='favicon.ico') }}"
+        />
+        <link
+            rel="shortcut icon"
+            type="image/x-icon"
+            href="{{ url_for('static', filename='favicon.ico') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/style.css') }}"
+        />
+    </head>
+    <body>
+        <div class="container">
+            <main>
+                <div id="messageArea" class="message-area"></div>
+
+                <div class="filter-bar">
+                    <input
+                        type="text"
+                        id="filterSearch"
+                        class="filter-search"
+                        placeholder="Filter by title or author"
+                    />
+                    <select id="filterStatus" class="filter-status">
+                        <option value="">All books</option>
+                        <option value="want_to_read">Want to read</option>
+                        <option value="reading">Currently reading</option>
+                        <option value="finished">Finished</option>
+                        <option value="did_not_finish">Didn't finish</option>
+                    </select>
+                    <button class="btn btn-primary" id="addBookBtn">
+                        + Add Book
+                    </button>
+                </div>
+
+                <div id="booksList" class="books-list">
+                    <div class="loading">Loading your books...</div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Search Modal -->
+        <div id="searchModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add a book</h2>
+                    <button class="modal-close" id="searchModalClose">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-modal-options">
+                        <button
+                            class="btn btn-outline btn-block"
+                            id="searchByTitleBtn"
+                        >
+                            Search by Title, Author, or ISBN
+                        </button>
+                        <div class="option-divider">or</div>
+                        <button
+                            class="btn btn-outline btn-block"
+                            id="manualAddBtnModal"
+                        >
+                            Add Book Manually
+                        </button>
+                    </div>
+
+                    <div
+                        class="search-modal-search"
+                        id="searchModalSearch"
+                        style="display: none"
+                    >
+                        <form class="search-form" id="searchForm">
+                            <div class="search-input-group">
+                                <input
+                                    type="text"
+                                    id="bookSearch"
+                                    class="search-input"
+                                    placeholder="Search by title, author, or ISBN..."
+                                    autocomplete="off"
+                                />
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary search-submit-btn"
+                                >
+                                    Search
+                                </button>
+                            </div>
+                        </form>
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Book Modal -->
+        <div id="addBookModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add book to library</h2>
+                    <button class="modal-close" id="modalClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-book-info" id="modalBookInfo">
+                        <div class="modal-book-cover">
+                            <img id="modalCover" src="" alt="Book cover" />
+                        </div>
+                        <div class="modal-book-details">
+                            <div class="form-group" id="titleGroup">
+                                <label for="modalTitle">Title *</label>
+                                <input
+                                    type="text"
+                                    id="modalTitle"
+                                    class="form-control"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group" id="authorGroup">
+                                <label for="modalAuthor">Author</label>
+                                <input
+                                    type="text"
+                                    id="modalAuthor"
+                                    class="form-control"
+                                />
+                            </div>
+                            <div class="form-group" id="yearGroup">
+                                <label for="modalYear">Publication Year</label>
+                                <input
+                                    type="number"
+                                    id="modalYear"
+                                    class="form-control"
+                                />
+                            </div>
+                            <p id="modalDateAdded" class="modal-date-added"></p>
+                        </div>
+                    </div>
+
+                    <div
+                        class="modal-summary"
+                        id="modalSummary"
+                        style="display: none"
+                    >
+                        <div class="form-group">
+                            <label>Summary</label>
+                            <div class="summary-content" id="summaryContent">
+                                <div class="loading-summary">
+                                    Loading summary...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-form">
+                        <div class="form-group">
+                            <label for="bookStatus">Reading Status</label>
+                            <select id="bookStatus" class="form-control">
+                                <option value="want_to_read">
+                                    Want to read
+                                </option>
+                                <option value="reading">
+                                    Currently reading
+                                </option>
+                                <option value="finished">Finished</option>
+                                <option value="did_not_finish">
+                                    Didn't finish
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Rating</label>
+                            <div class="star-rating" id="starRating">
+                                <span class="star" data-rating="0.5">☆</span>
+                                <span class="star" data-rating="1">☆</span>
+                                <span class="star" data-rating="1.5">☆</span>
+                                <span class="star" data-rating="2">☆</span>
+                                <span class="star" data-rating="2.5">☆</span>
+                                <span class="star" data-rating="3">☆</span>
+                                <span class="star" data-rating="3.5">☆</span>
+                                <span class="star" data-rating="4">☆</span>
+                                <span class="star" data-rating="4.5">☆</span>
+                                <span class="star" data-rating="5">☆</span>
+                            </div>
+                            <div class="rating-display" id="ratingDisplay">
+                                No rating
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        class="btn btn-danger"
+                        id="modalDelete"
+                        style="display: none"
+                    >
+                        Delete Book
+                    </button>
+                    <div class="modal-footer-right">
+                        <button class="btn btn-secondary" id="modalCancel">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary" id="modalSave">
+                            Add to Library
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </body>
+</html>
