@@ -41,14 +41,6 @@ uv run main.py
 
 ### Using Docker Compose
 
-1. Build and run:
 ```bash
-docker-compose up --build
-```
-
-2. Open your browser to `http://localhost:5000`
-
-3. Stop the application:
-```bash
-docker-compose down
+docker-compose up -d
 ```
