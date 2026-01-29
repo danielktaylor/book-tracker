@@ -442,15 +442,26 @@ main {
     font-size: 0.75rem;
     font-weight: 500;
     color: #fff;
-    background: linear-gradient(
-        135deg,
-        var(--primary-color),
-        var(--primary-hover)
-    );
     padding: 4px 10px;
     border-radius: 12px;
     white-space: nowrap;
     box-shadow: var(--shadow-sm);
+}
+
+.book-card-status[data-status="want_to_read"] {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.book-card-status[data-status="reading"] {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.book-card-status[data-status="finished"] {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.book-card-status[data-status="did_not_finish"] {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .book-card-rating {

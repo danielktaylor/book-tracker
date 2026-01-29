@@ -311,7 +311,9 @@ function createBookCard(book) {
   const metaParts = [];
   if (year) metaParts.push(`<span class="book-card-year">${year}</span>`);
   if (book.status)
-    metaParts.push(`<span class="book-card-status">${statusLabel}</span>`);
+    metaParts.push(
+      `<span class="book-card-status" data-status="${book.status}">${statusLabel}</span>`,
+    );
   if (book.rating) {
     const ratingDescription = ratingDescriptions[book.rating] || "";
     metaParts.push(
@@ -479,7 +481,7 @@ function openModal(book) {
 
   document.getElementById("modalBookInfo").style.display = "flex";
 
-  document.getElementById("bookStatus").value = "want_to_read";
+  document.getElementById("bookStatus").value = "";
   selectedRating = 0;
   updateStarDisplay();
 
@@ -510,7 +512,7 @@ function openManualEntryModal() {
   document.getElementById("modalDateAdded").style.display = "none";
   document.getElementById("modalBookInfo").style.display = "flex";
 
-  document.getElementById("bookStatus").value = "want_to_read";
+  document.getElementById("bookStatus").value = "";
   selectedRating = 0;
   updateStarDisplay();
 
@@ -667,6 +669,11 @@ async function saveBook() {
 
   if (!title) {
     showMessage("Please enter a book title", "error");
+    return;
+  }
+
+  if (!status) {
+    showMessage("Please select a reading status", "error");
     return;
   }
 
