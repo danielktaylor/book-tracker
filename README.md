@@ -42,10 +42,10 @@ uv run main.py
 ### Using Docker Compose
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 To rebuild the image if the code changes:
 ```bash
-docker-compose up --build
+docker compose up --build
 ```

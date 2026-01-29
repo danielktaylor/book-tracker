@@ -7,7 +7,7 @@ RUN pip install uv
 
 # Copy project files
 COPY pyproject.toml .
-COPY main.py .
+COPY *.py .
 COPY templates/ templates/
 COPY static/ static/
 
