@@ -2,8 +2,8 @@ services:
   web:
     build: .
     container_name: book-tracker
-    ports:
-      - "5883:5000"
+    expose:
+      - "5000"
     volumes:
       - .${HOME}/volumes/book-tracker:/app/data
     environment:
