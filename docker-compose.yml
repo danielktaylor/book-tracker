@@ -5,7 +5,7 @@ services:
     expose:
       - "5000"
     volumes:
-      - .${HOME}/volumes/book-tracker:/app/data
+      - ${HOME}/volumes/book-tracker:/app/data
     environment:
       - DEBUG=false
     restart: unless-stopped
