@@ -352,8 +352,42 @@ function getStatusLabel(status) {
   return statusMap[status] || status;
 }
 
+function parseAppDate(dateString) {
+  if (!dateString) return null;
+
+  if (dateString instanceof Date) {
+    return Number.isNaN(dateString.getTime()) ? null : dateString;
+  }
+
+  const raw = String(dateString).trim();
+  const timestampMatch = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+
+  if (timestampMatch) {
+    const [, year, month, day, hour = "0", minute = "0", second = "0"] =
+      timestampMatch;
+    const parsed = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    );
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  const fallback = new Date(raw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function formatDate(dateString) {
-  const date = new Date(dateString);
+  const date = parseAppDate(dateString);
+  if (!date) return "";
+
   const now = new Date();
   const diffTime = Math.abs(now - date);
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
