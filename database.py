@@ -31,7 +31,8 @@ def init_db():
                 status TEXT,
                 rating REAL,
                 notes TEXT,
-                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
@@ -44,13 +45,23 @@ def init_db():
             # Column already exists
             pass
 
+        # Add status_updated_at column to existing databases
+        try:
+            conn.execute(
+                "ALTER TABLE books ADD COLUMN status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            )
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+
 
 def add_book(book_data):
     with get_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, isbn, status, rating, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, isbn, status, rating, notes, status_updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
             (
                 book_data.get("key"),
@@ -120,13 +131,20 @@ def update_book(book_id, book_data):
         conn.execute(
             """
             UPDATE books
-            SET status = ?, rating = ?, notes = ?
+            SET status = ?,
+                rating = ?,
+                notes = ?,
+                status_updated_at = CASE
+                    WHEN COALESCE(status, '') != COALESCE(?, '') THEN CURRENT_TIMESTAMP
+                    ELSE status_updated_at
+                END
             WHERE id = ?
         """,
             (
                 book_data.get("status"),
                 book_data.get("rating"),
                 book_data.get("notes"),
+                book_data.get("status"),
                 book_id,
             ),
         )

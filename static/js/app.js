@@ -321,7 +321,9 @@ function createBookCard(book) {
     );
   }
 
-  const dateAdded = book.added_at ? formatDate(book.added_at) : "";
+  const statusUpdated = book.status_updated_at
+    ? formatDate(book.status_updated_at)
+    : "";
 
   div.innerHTML = `
     <div class="book-card-cover">
@@ -332,7 +334,7 @@ function createBookCard(book) {
       <div class="book-card-author">${author}</div>
       ${metaParts.length > 0 ? `<div class="book-card-meta">${metaParts.join("")}</div>` : ""}
     </div>
-    ${dateAdded ? `<div class="book-card-date">Added ${dateAdded}</div>` : ""}
+    ${statusUpdated ? `<div class="book-card-date">Updated ${statusUpdated}</div>` : ""}
   `;
 
   div.addEventListener("click", () => openEditModal(book));
