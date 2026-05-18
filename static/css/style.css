@@ -562,6 +562,12 @@ main {
     }
 }
 
+@media (max-width: 640px) {
+    .book-card-date {
+        display: none;
+    }
+}
+
 /* Modal Styles */
 .modal {
     display: none;
