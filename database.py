@@ -47,13 +47,22 @@ def init_db():
 
         # Add status_updated_at column to existing databases
         try:
-            conn.execute(
-                "ALTER TABLE books ADD COLUMN status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-            )
+            conn.execute("ALTER TABLE books ADD COLUMN status_updated_at TIMESTAMP")
             conn.commit()
         except sqlite3.OperationalError:
             # Column already exists
             pass
+
+        # Backfill status_updated_at for any existing rows missing it
+        conn.execute(
+            """
+            UPDATE books
+            SET status_updated_at = added_at
+            WHERE status_updated_at IS NULL
+               OR TRIM(CAST(status_updated_at AS TEXT)) = ''
+            """
+        )
+        conn.commit()
 
 
 def add_book(book_data):

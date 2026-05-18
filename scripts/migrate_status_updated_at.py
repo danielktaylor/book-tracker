@@ -8,10 +8,16 @@ def main():
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DATABASE_PATH)
+    table_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'books'"
+    ).fetchone()
+    if not table_exists:
+        conn.close()
+        print("Migration skipped: books table does not exist yet.")
+        return
+
     try:
-        conn.execute(
-            "ALTER TABLE books ADD COLUMN status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-        )
+        conn.execute("ALTER TABLE books ADD COLUMN status_updated_at TIMESTAMP")
     except sqlite3.OperationalError as e:
         if "duplicate column name" not in str(e).lower():
             raise
@@ -20,8 +26,6 @@ def main():
         """
         UPDATE books
         SET status_updated_at = added_at
-        WHERE status_updated_at IS NULL
-           OR TRIM(CAST(status_updated_at AS TEXT)) = ''
         """
     )
     conn.commit()
