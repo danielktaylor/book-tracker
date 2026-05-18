@@ -104,7 +104,7 @@ def get_all_books(limit=None, offset=0, search_query=None, status_filter=None):
             query += " AND status = ?"
             params.append(status_filter)
 
-        query += " ORDER BY added_at DESC"
+        query += " ORDER BY COALESCE(status_updated_at, added_at) DESC, id DESC"
 
         # Add pagination
         if limit is not None:
