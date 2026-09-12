@@ -17,6 +17,9 @@ Responsive for mobile. Built with Python, Flask, and SQLite. Deployable with Doc
 - **Personal Library**: Save and manage your book collection
   - Add search results to your library and add a star rating (half stars supported!)
   - View all saved books with cover images
+  - Edit every book's metadata after adding it: title, author, publication year, description, and reading status/rating/notes
+  - Upload a custom cover image (replacing the Open Library cover) or keep the fetched description as a starting point
+  - Descriptions are stored locally and prefilled from Open Library the first time you edit a book that has none
 
 ## Tech stack
 

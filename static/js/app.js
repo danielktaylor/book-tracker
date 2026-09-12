@@ -7,6 +7,7 @@ let isManualEntry = false;
 let isEditMode = false;
 let currentBookId = null;
 let lastSearchResults = []; // Store last search results
+let pendingCoverFile = null; // Cover selected in the modal, uploaded on save
 
 // Rating descriptions
 const ratingDescriptions = {
@@ -42,6 +43,9 @@ const modalCancel = document.getElementById("modalCancel");
 const modalSave = document.getElementById("modalSave");
 const modalDelete = document.getElementById("modalDelete");
 const starRating = document.getElementById("starRating");
+const modalDescription = document.getElementById("modalDescription");
+const modalCoverInput = document.getElementById("modalCoverInput");
+const modalCoverChange = document.getElementById("modalCoverChange");
 
 const filterSearch = document.getElementById("filterSearch");
 const filterStatus = document.getElementById("filterStatus");
@@ -294,13 +298,22 @@ function displayBooks(books) {
   });
 }
 
+function getCoverUrl(book, size = "M") {
+  if (book.cover_image) {
+    return book.cover_image;
+  }
+  const coverId = book.cover_id || book.cover_i;
+  if (coverId) {
+    return `https://covers.openlibrary.org/b/id/${coverId}-${size}.jpg`;
+  }
+  return "/static/images/no-cover.svg";
+}
+
 function createBookCard(book) {
   const div = document.createElement("div");
   div.className = "book-card clickable";
 
-  const coverUrl = book.cover_id
-    ? `https://covers.openlibrary.org/b/id/${book.cover_id}-M.jpg`
-    : "/static/images/no-cover.svg";
+  const coverUrl = getCoverUrl(book);
 
   const author = book.author_name || "Unknown Author";
   const year = book.first_publish_year ? book.first_publish_year : "";
@@ -502,23 +515,34 @@ function initModal() {
     }
   });
 
+  if (modalCoverChange && modalCoverInput) {
+    modalCoverChange.addEventListener("click", () => modalCoverInput.click());
+  }
+
+  if (modalCoverInput) {
+    modalCoverInput.addEventListener("change", () => {
+      const file = modalCoverInput.files[0];
+      if (!file) return;
+      pendingCoverFile = file;
+      document.getElementById("modalCover").src = URL.createObjectURL(file);
+    });
+  }
+
   initStarRating();
 }
 
 function openModal(book) {
   isManualEntry = false;
   isEditMode = false;
-
-  const coverUrl = book.cover_i
-    ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-    : "/static/images/no-cover.svg";
+  pendingCoverFile = null;
+  if (modalCoverInput) modalCoverInput.value = "";
 
   const authors = book.author_name
     ? book.author_name.join(", ")
     : "Unknown Author";
   const year = book.first_publish_year ? book.first_publish_year : "";
 
-  document.getElementById("modalCover").src = coverUrl;
+  document.getElementById("modalCover").src = getCoverUrl(book);
   document.getElementById("modalTitle").value = book.title || "";
   document.getElementById("modalAuthor").value = authors || "";
   document.getElementById("modalYear").value = year || "";
@@ -532,15 +556,14 @@ function openModal(book) {
   selectedRating = 0;
   updateStarDisplay();
   document.getElementById("bookNotes").value = "";
+  modalDescription.value = "";
 
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
 
-  // Fetch and display summary if book has key
+  // Prefill description from OpenLibrary if the result has a work key
   if (book.key) {
-    fetchBookSummary(book.key);
-  } else {
-    document.getElementById("modalSummary").style.display = "none";
+    fetchBookDescription(book.key, modalDescription);
   }
 
   modal.classList.add("show");
@@ -551,6 +574,8 @@ function openManualEntryModal() {
   isManualEntry = true;
   isEditMode = false;
   selectedBook = null;
+  pendingCoverFile = null;
+  if (modalCoverInput) modalCoverInput.value = "";
 
   document.getElementById("modalCover").src = "/static/images/no-cover.svg";
   document.getElementById("modalTitle").value = "";
@@ -564,11 +589,10 @@ function openManualEntryModal() {
   selectedRating = 0;
   updateStarDisplay();
   document.getElementById("bookNotes").value = "";
+  modalDescription.value = "";
 
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
-
-  document.getElementById("modalSummary").style.display = "none";
 
   modal.classList.add("show");
   document.body.style.overflow = "hidden";
@@ -579,15 +603,13 @@ function openEditModal(book) {
   isManualEntry = false;
   currentBookId = book.id;
   selectedBook = book;
-
-  const coverUrl = book.cover_id
-    ? `https://covers.openlibrary.org/b/id/${book.cover_id}-M.jpg`
-    : "/static/images/no-cover.svg";
+  pendingCoverFile = null;
+  if (modalCoverInput) modalCoverInput.value = "";
 
   const authors = book.author_name || "Unknown Author";
   const year = book.first_publish_year ? book.first_publish_year : "";
 
-  document.getElementById("modalCover").src = coverUrl;
+  document.getElementById("modalCover").src = getCoverUrl(book);
   document.getElementById("modalTitle").value = book.title || "";
   document.getElementById("modalAuthor").value = authors || "";
   document.getElementById("modalYear").value = year || "";
@@ -608,15 +630,18 @@ function openEditModal(book) {
   selectedRating = book.rating || 0;
   updateStarDisplay();
   document.getElementById("bookNotes").value = book.notes || "";
+  modalDescription.value = book.description || "";
 
   modalSave.textContent = "Update Book";
   modalDelete.style.display = "block";
 
-  // Fetch and display summary if book has openlibrary_key
-  if (book.openlibrary_key && !book.openlibrary_key.startsWith("manual_")) {
-    fetchBookSummary(book.openlibrary_key);
-  } else {
-    document.getElementById("modalSummary").style.display = "none";
+  // Prefill description from OpenLibrary when the book has none stored yet
+  if (
+    !modalDescription.value &&
+    book.openlibrary_key &&
+    !book.openlibrary_key.startsWith("manual_")
+  ) {
+    fetchBookDescription(book.openlibrary_key, modalDescription);
   }
 
   modal.classList.add("show");
@@ -631,9 +656,11 @@ function closeModal() {
   isManualEntry = false;
   isEditMode = false;
   currentBookId = null;
+  pendingCoverFile = null;
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
-  document.getElementById("modalSummary").style.display = "none";
+  modalDescription.value = "";
+  if (modalCoverInput) modalCoverInput.value = "";
 }
 
 function returnToSearch() {
@@ -719,6 +746,7 @@ async function saveBook() {
   const title = document.getElementById("modalTitle").value.trim();
   const author = document.getElementById("modalAuthor").value.trim();
   const year = document.getElementById("modalYear").value.trim();
+  const description = modalDescription.value.trim();
 
   // Clear any previous error
   statusError.textContent = "";
@@ -745,6 +773,7 @@ async function saveBook() {
       title: title,
       author_name: author,
       first_publish_year: year ? parseInt(year) : null,
+      description: description,
       status: status,
       rating: rating,
       notes: notes,
@@ -756,6 +785,7 @@ async function saveBook() {
       title: title,
       author_name: author,
       first_publish_year: year ? parseInt(year) : null,
+      description: description,
       status: status,
       rating: rating,
       notes: notes,
@@ -774,6 +804,11 @@ async function saveBook() {
     const data = await response.json();
 
     if (response.ok) {
+      if (pendingCoverFile && !(await uploadCover(data.id, pendingCoverFile))) {
+        closeModal();
+        loadBooks();
+        return;
+      }
       showMessage("Book added to your library!", "success");
       searchInput.value = "";
       closeModal();
@@ -791,9 +826,18 @@ async function saveBook() {
 }
 
 async function updateBook() {
+  const title = document.getElementById("modalTitle").value.trim();
+  const author = document.getElementById("modalAuthor").value.trim();
+  const year = document.getElementById("modalYear").value.trim();
+  const description = modalDescription.value.trim();
   const status = document.getElementById("bookStatus").value;
   const rating = selectedRating;
   const notes = document.getElementById("bookNotes").value.trim();
+
+  if (!title) {
+    showMessage("Please enter a book title", "error");
+    return;
+  }
 
   try {
     const response = await fetch(`/api/books/${currentBookId}`, {
@@ -802,6 +846,10 @@ async function updateBook() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        title: title,
+        author_name: author,
+        first_publish_year: year ? parseInt(year) : null,
+        description: description,
         status: status,
         rating: rating,
         notes: notes,
@@ -811,6 +859,14 @@ async function updateBook() {
     const data = await response.json();
 
     if (response.ok) {
+      if (
+        pendingCoverFile &&
+        !(await uploadCover(currentBookId, pendingCoverFile))
+      ) {
+        closeModal();
+        loadBooks();
+        return;
+      }
       showMessage("Book updated successfully!", "success");
       closeModal();
       loadBooks();
@@ -820,6 +876,29 @@ async function updateBook() {
   } catch (error) {
     console.error("Error updating book:", error);
     showMessage("Error updating book. Please try again.", "error");
+  }
+}
+
+async function uploadCover(bookId, file) {
+  const formData = new FormData();
+  formData.append("cover", file);
+
+  try {
+    const response = await fetch(`/api/books/${bookId}/cover`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showMessage(data.error || "Error uploading cover", "error");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error uploading cover:", error);
+    showMessage("Error uploading cover. Please try again.", "error");
+    return false;
   }
 }
 
@@ -850,13 +929,8 @@ async function deleteBookFromModal() {
   }
 }
 
-async function fetchBookSummary(openlibraryKey) {
-  const summarySection = document.getElementById("modalSummary");
-  const summaryContent = document.getElementById("summaryContent");
-
-  summarySection.style.display = "block";
-  summaryContent.innerHTML =
-    '<div class="loading-summary">Loading summary...</div>';
+async function fetchBookDescription(openlibraryKey, textarea) {
+  if (!textarea || textarea.value.trim()) return;
 
   try {
     // Extract work ID from key (e.g., "/works/OL45804W" -> "OL45804W")
@@ -866,25 +940,23 @@ async function fetchBookSummary(openlibraryKey) {
     );
 
     if (!response.ok) {
-      throw new Error("Failed to fetch summary");
+      throw new Error("Failed to fetch description");
     }
 
     const data = await response.json();
+    if (!data.description) return;
 
-    if (data.description) {
-      const description =
-        typeof data.description === "string"
-          ? data.description
-          : data.description.value;
-      summaryContent.innerHTML = `<p>${description}</p>`;
-    } else {
-      summaryContent.innerHTML =
-        '<p class="no-summary">No summary available for this book.</p>';
+    const description =
+      typeof data.description === "string"
+        ? data.description
+        : data.description.value;
+
+    // Don't clobber anything the user typed while the request was in flight
+    if (description && !textarea.value.trim()) {
+      textarea.value = description;
     }
   } catch (error) {
-    console.error("Error fetching summary:", error);
-    summaryContent.innerHTML =
-      '<p class="no-summary">Could not load summary.</p>';
+    console.error("Error fetching description:", error);
   }
 }
 

@@ -112,8 +112,27 @@
                 </div>
                 <div class="modal-body">
                     <div class="modal-book-info" id="modalBookInfo">
-                        <div class="modal-book-cover">
-                            <img id="modalCover" src="" alt="Book cover" />
+                        <div class="modal-book-cover-wrap">
+                            <div class="modal-book-cover">
+                                <img
+                                    id="modalCover"
+                                    src=""
+                                    alt="Book cover"
+                                />
+                            </div>
+                            <input
+                                type="file"
+                                id="modalCoverInput"
+                                accept="image/png,image/jpeg,image/gif,image/webp"
+                                hidden
+                            />
+                            <button
+                                type="button"
+                                id="modalCoverChange"
+                                class="cover-change-btn"
+                            >
+                                Change cover
+                            </button>
                         </div>
                         <div class="modal-book-details">
                             <div class="form-group" id="titleGroup">
@@ -145,22 +164,17 @@
                         </div>
                     </div>
 
-                    <div
-                        class="modal-summary"
-                        id="modalSummary"
-                        style="display: none"
-                    >
-                        <div class="form-group">
-                            <label>Summary</label>
-                            <div class="summary-content" id="summaryContent">
-                                <div class="loading-summary">
-                                    Loading summary...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="modal-form">
+                        <div class="form-group">
+                            <label for="modalDescription">Description</label>
+                            <textarea
+                                id="modalDescription"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Add a description..."
+                            ></textarea>
+                        </div>
+
                         <div class="form-group">
                             <label for="bookStatus">Reading Status *</label>
                             <select id="bookStatus" class="form-control">

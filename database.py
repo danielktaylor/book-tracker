@@ -27,10 +27,12 @@ def init_db():
                 author_name TEXT,
                 first_publish_year INTEGER,
                 cover_id INTEGER,
+                cover_image TEXT,
                 isbn TEXT,
                 status TEXT,
                 rating REAL,
                 notes TEXT,
+                description TEXT,
                 added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -53,6 +55,22 @@ def init_db():
             # Column already exists
             pass
 
+        # Add description column to existing databases
+        try:
+            conn.execute("ALTER TABLE books ADD COLUMN description TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+
+        # Add cover_image column to existing databases
+        try:
+            conn.execute("ALTER TABLE books ADD COLUMN cover_image TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+
         # Backfill status_updated_at for any existing rows missing it
         conn.execute(
             """
@@ -69,8 +87,8 @@ def add_book(book_data):
     with get_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, isbn, status, rating, notes, status_updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO books (openlibrary_key, title, author_name, first_publish_year, cover_id, cover_image, isbn, status, rating, notes, description, status_updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
             (
                 book_data.get("key"),
@@ -78,14 +96,30 @@ def add_book(book_data):
                 book_data.get("author_name"),
                 book_data.get("first_publish_year"),
                 book_data.get("cover_i"),
+                book_data.get("cover_image"),
                 book_data.get("isbn"),
                 book_data.get("status"),
                 book_data.get("rating"),
                 book_data.get("notes"),
+                book_data.get("description"),
             ),
         )
         conn.commit()
         return cursor.lastrowid
+
+
+def get_book(book_id):
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def set_cover_image(book_id, cover_image):
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE books SET cover_image = ? WHERE id = ?", (cover_image, book_id)
+        )
+        conn.commit()
 
 
 def get_all_books(limit=None, offset=0, search_query=None, status_filter=None):
@@ -140,7 +174,12 @@ def update_book(book_id, book_data):
         conn.execute(
             """
             UPDATE books
-            SET status = ?,
+            SET title = ?,
+                author_name = ?,
+                first_publish_year = ?,
+                description = ?,
+                cover_image = COALESCE(?, cover_image),
+                status = ?,
                 rating = ?,
                 notes = ?,
                 status_updated_at = CASE
@@ -150,6 +189,11 @@ def update_book(book_id, book_data):
             WHERE id = ?
         """,
             (
+                book_data.get("title"),
+                book_data.get("author_name"),
+                book_data.get("first_publish_year"),
+                book_data.get("description"),
+                book_data.get("cover_image"),
                 book_data.get("status"),
                 book_data.get("rating"),
                 book_data.get("notes"),

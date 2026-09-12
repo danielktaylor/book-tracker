@@ -1,21 +1,54 @@
 import os
+import uuid
+from pathlib import Path
 from sqlite3 import IntegrityError
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
+from werkzeug.utils import secure_filename
 
 from database import (
     add_book,
     delete_book,
     get_all_books,
+    get_book,
     get_books_count,
     init_db,
+    set_cover_image,
     update_book,
 )
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB cover uploads
+
+UPLOAD_DIR = Path("data/uploads")
+ALLOWED_COVER_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 init_db()
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def delete_upload(cover_path):
+    """Remove a previously uploaded cover file referenced by its /uploads/ URL."""
+    if not cover_path or not cover_path.startswith("/uploads/"):
+        return
+    filename = cover_path[len("/uploads/") :]
+    if not filename or "/" in filename or "\\" in filename:
+        return
+    try:
+        (UPLOAD_DIR / filename).unlink()
+    except FileNotFoundError:
+        pass
+
+
+@app.errorhandler(413)
+def upload_too_large(error):
+    return jsonify({"error": "Cover image is too large (max 5 MB)"}), 413
+
+
+@app.route("/uploads/<path:filename>")
+def uploaded_cover(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
 
 
 @app.route("/")
@@ -110,6 +143,7 @@ def save_book():
                     "status": book_data.get("status"),
                     "rating": book_data.get("rating"),
                     "notes": book_data.get("notes"),
+                    "description": book_data.get("description"),
                 }
             )
         else:
@@ -139,6 +173,7 @@ def save_book():
                     "status": book_data.get("status"),
                     "rating": book_data.get("rating"),
                     "notes": book_data.get("notes"),
+                    "description": book_data.get("description"),
                 }
             )
 
@@ -152,9 +187,46 @@ def save_book():
 @app.route("/api/books/<int:book_id>", methods=["PUT"])
 def edit_book(book_id):
     try:
-        book_data = request.json
+        book_data = request.json or {}
+
+        if not (book_data.get("title") or "").strip():
+            return jsonify({"error": "Book title is required"}), 400
+
+        if get_book(book_id) is None:
+            return jsonify({"error": "Book not found"}), 404
+
         update_book(book_id, book_data)
         return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/books/<int:book_id>/cover", methods=["POST"])
+def upload_cover(book_id):
+    try:
+        if get_book(book_id) is None:
+            return jsonify({"error": "Book not found"}), 404
+
+        file = request.files.get("cover")
+        if file is None or not file.filename:
+            return jsonify({"error": "No image file provided"}), 400
+
+        extension = Path(secure_filename(file.filename)).suffix.lower()
+        if extension not in ALLOWED_COVER_EXTENSIONS:
+            return jsonify(
+                {"error": "Unsupported image type. Use PNG, JPG, GIF, or WEBP."}
+            ), 400
+
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        filename = f"book_{book_id}_{uuid.uuid4().hex}{extension}"
+        file.save(UPLOAD_DIR / filename)
+
+        cover_url = f"/uploads/{filename}"
+        previous_cover = get_book(book_id).get("cover_image")
+        set_cover_image(book_id, cover_url)
+        delete_upload(previous_cover)
+
+        return jsonify({"success": True, "cover_image": cover_url}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -162,7 +234,10 @@ def edit_book(book_id):
 @app.route("/api/books/<int:book_id>", methods=["DELETE"])
 def remove_book(book_id):
     try:
+        book = get_book(book_id)
         delete_book(book_id)
+        if book:
+            delete_upload(book.get("cover_image"))
         return jsonify({"success": True}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
