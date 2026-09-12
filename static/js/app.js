@@ -504,6 +504,18 @@ function initModal() {
     }
   });
 
+  // Escape closes the modal, mirroring the X / Cancel buttons
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!modal.classList.contains("show")) return;
+
+    if (isEditMode) {
+      closeModal();
+    } else {
+      returnToSearch();
+    }
+  });
+
   // Clear status error when user selects a status
   const statusSelect = document.getElementById("bookStatus");
   const statusError = document.getElementById("statusError");
