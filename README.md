@@ -19,7 +19,17 @@ Responsive for mobile. Built with Python, Flask, and SQLite. Deployable with Doc
   - View all saved books with cover images
   - Edit every book's metadata after adding it: title, author, publication year, description, and reading status/rating/notes
   - Upload a custom cover image (replacing the Open Library cover) or keep the fetched description as a starting point
-  - Descriptions are stored locally and prefilled from Open Library the first time you edit a book that has none
+  - Descriptions are stored locally and prefilled the first time you edit a book that has none: Open Library first, then the Apple Books (iTunes) API when Open Library has nothing substantial
+  - Books with no cover get a suggested cover from Apple Books, imported and stored locally when you save
+
+## Metadata sources
+
+| Source | Used for | Notes |
+|---|---|---|
+| Open Library | search, covers, descriptions | open data, no key |
+| iTunes Search API | description + cover fallback | keyless; results matched on title **and** author, HTML stripped |
+
+Enrichment is best-effort: if a source is unreachable or has no match, the field is simply left empty. Suggested covers are only fetched for books that have no cover, and are only stored when you save.
 
 ## Tech stack
 

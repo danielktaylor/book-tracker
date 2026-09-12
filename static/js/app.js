@@ -8,6 +8,8 @@ let isEditMode = false;
 let currentBookId = null;
 let lastSearchResults = []; // Store last search results
 let pendingCoverFile = null; // Cover selected in the modal, uploaded on save
+let pendingCoverUrl = null; // Suggested cover URL for the modal, imported on save
+let modalEnrichToken = 0; // Discards enrichment responses for a closed/switched modal
 
 // Rating descriptions
 const ratingDescriptions = {
@@ -46,6 +48,7 @@ const starRating = document.getElementById("starRating");
 const modalDescription = document.getElementById("modalDescription");
 const modalCoverInput = document.getElementById("modalCoverInput");
 const modalCoverChange = document.getElementById("modalCoverChange");
+const modalCoverHint = document.getElementById("modalCoverHint");
 
 const filterSearch = document.getElementById("filterSearch");
 const filterStatus = document.getElementById("filterStatus");
@@ -536,6 +539,8 @@ function initModal() {
       const file = modalCoverInput.files[0];
       if (!file) return;
       pendingCoverFile = file;
+      pendingCoverUrl = null;
+      setCoverHint("");
       document.getElementById("modalCover").src = URL.createObjectURL(file);
     });
   }
@@ -547,6 +552,8 @@ function openModal(book) {
   isManualEntry = false;
   isEditMode = false;
   pendingCoverFile = null;
+  pendingCoverUrl = null;
+  setCoverHint("");
   if (modalCoverInput) modalCoverInput.value = "";
 
   const authors = book.author_name
@@ -573,10 +580,14 @@ function openModal(book) {
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
 
-  // Prefill description from OpenLibrary if the result has a work key
-  if (book.key) {
-    fetchBookDescription(book.key, modalDescription);
-  }
+  // Prefill the description (OpenLibrary, falling back to iTunes) and, when the
+  // search result has no cover, suggest one
+  enrichModal({
+    title: book.title || "",
+    author: authors,
+    key: book.key || null,
+    wantCover: !book.cover_i && !book.cover_image,
+  });
 
   modal.classList.add("show");
   document.body.style.overflow = "hidden";
@@ -587,6 +598,8 @@ function openManualEntryModal() {
   isEditMode = false;
   selectedBook = null;
   pendingCoverFile = null;
+  pendingCoverUrl = null;
+  setCoverHint("");
   if (modalCoverInput) modalCoverInput.value = "";
 
   document.getElementById("modalCover").src = "/static/images/no-cover.svg";
@@ -616,6 +629,8 @@ function openEditModal(book) {
   currentBookId = book.id;
   selectedBook = book;
   pendingCoverFile = null;
+  pendingCoverUrl = null;
+  setCoverHint("");
   if (modalCoverInput) modalCoverInput.value = "";
 
   const authors = book.author_name || "Unknown Author";
@@ -647,13 +662,17 @@ function openEditModal(book) {
   modalSave.textContent = "Update Book";
   modalDelete.style.display = "block";
 
-  // Prefill description from OpenLibrary when the book has none stored yet
-  if (
-    !modalDescription.value &&
-    book.openlibrary_key &&
-    !book.openlibrary_key.startsWith("manual_")
-  ) {
-    fetchBookDescription(book.openlibrary_key, modalDescription);
+  // Fill a missing description (OpenLibrary, then iTunes) and suggest a cover
+  // when the book has none. enrichModal never overwrites filled fields.
+  const hasCover = !!(book.cover_image || book.cover_id);
+  const isManual = (book.openlibrary_key || "").startsWith("manual_");
+  if (!modalDescription.value || !hasCover) {
+    enrichModal({
+      title: book.title || "",
+      author: book.author_name || "",
+      key: isManual ? null : book.openlibrary_key || null,
+      wantCover: !hasCover,
+    });
   }
 
   modal.classList.add("show");
@@ -669,9 +688,11 @@ function closeModal() {
   isEditMode = false;
   currentBookId = null;
   pendingCoverFile = null;
+  pendingCoverUrl = null;
   modalSave.textContent = "Add to Library";
   modalDelete.style.display = "none";
   modalDescription.value = "";
+  setCoverHint("");
   if (modalCoverInput) modalCoverInput.value = "";
 }
 
@@ -816,7 +837,7 @@ async function saveBook() {
     const data = await response.json();
 
     if (response.ok) {
-      if (pendingCoverFile && !(await uploadCover(data.id, pendingCoverFile))) {
+      if (!(await applyPendingCover(data.id))) {
         closeModal();
         loadBooks();
         return;
@@ -871,10 +892,7 @@ async function updateBook() {
     const data = await response.json();
 
     if (response.ok) {
-      if (
-        pendingCoverFile &&
-        !(await uploadCover(currentBookId, pendingCoverFile))
-      ) {
+      if (!(await applyPendingCover(currentBookId))) {
         closeModal();
         loadBooks();
         return;
@@ -941,35 +959,75 @@ async function deleteBookFromModal() {
   }
 }
 
-async function fetchBookDescription(openlibraryKey, textarea) {
-  if (!textarea || textarea.value.trim()) return;
+function setCoverHint(text) {
+  if (modalCoverHint) modalCoverHint.textContent = text || "";
+}
+
+async function enrichModal({ title, author, key, wantCover }) {
+  if (!title && !key) return;
+
+  // Any later modal open/enrich supersedes this response
+  const token = ++modalEnrichToken;
+
+  const params = new URLSearchParams();
+  if (title) params.append("title", title);
+  if (author) params.append("author", author);
+  if (key) params.append("key", key);
+  if (wantCover) params.append("want_cover", "1");
 
   try {
-    // Extract work ID from key (e.g., "/works/OL45804W" -> "OL45804W")
-    const workId = openlibraryKey.split("/").pop();
-    const response = await fetch(
-      `https://openlibrary.org/works/${workId}.json`,
-    );
+    const response = await fetch(`/api/enrich?${params}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    if (token !== modalEnrichToken) return;
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch description");
+    // Never clobber text the user typed while the request was in flight
+    if (data.description && !modalDescription.value.trim()) {
+      modalDescription.value = data.description;
     }
 
-    const data = await response.json();
-    if (!data.description) return;
-
-    const description =
-      typeof data.description === "string"
-        ? data.description
-        : data.description.value;
-
-    // Don't clobber anything the user typed while the request was in flight
-    if (description && !textarea.value.trim()) {
-      textarea.value = description;
+    if (wantCover && data.cover_url && !pendingCoverFile && !pendingCoverUrl) {
+      pendingCoverUrl = data.cover_url;
+      document.getElementById("modalCover").src = data.cover_url;
+      setCoverHint("Suggested cover — save to keep");
     }
   } catch (error) {
-    console.error("Error fetching description:", error);
+    console.error("Error enriching book:", error);
   }
+}
+
+async function importCover(bookId, url) {
+  try {
+    const response = await fetch(`/api/books/${bookId}/cover/import`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: url }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showMessage(data.error || "Error saving cover", "error");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error saving cover:", error);
+    showMessage("Error saving cover. Please try again.", "error");
+    return false;
+  }
+}
+
+// A user-picked file wins over an auto-suggested cover URL
+async function applyPendingCover(bookId) {
+  if (pendingCoverFile) {
+    return uploadCover(bookId, pendingCoverFile);
+  }
+  if (pendingCoverUrl) {
+    return importCover(bookId, pendingCoverUrl);
+  }
+  return true;
 }
 
 // Filter Functions
